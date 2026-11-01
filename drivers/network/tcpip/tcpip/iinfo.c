@@ -24,7 +24,6 @@ TDI_STATUS InfoTdiQueryGetInterfaceMIB(TDIEntityID ID,
     PLAN_ADAPTER IF;
     PCHAR IFDescr;
     ULONG Size;
-    ULONG Medium;
     NDIS_STATUS NdisStatus;
 
     if (!Interface)
@@ -36,7 +35,7 @@ TDI_STATUS InfoTdiQueryGetInterfaceMIB(TDIEntityID ID,
 		("Getting IFEntry MIB (IF %08x LA %08x) (%04x:%d)\n",
 		 Interface, IF, ID.tei_entity, ID.tei_instance));
 
-    OutData = ExAllocatePoolWithTag( NonPagedPool, FIELD_OFFSET(IFEntry, if_descr[MAX_ADAPTER_DESCRIPTION_LENGTH + 1]), OUT_DATA_TAG );
+    OutData = ExAllocatePool( NonPagedPool, FIELD_OFFSET(IFEntry, if_descr[MAX_ADAPTER_DESCRIPTION_LENGTH + 1]));
 
     if( !OutData ) return TDI_NO_RESOURCES; /* Out of memory */
 
@@ -45,7 +44,7 @@ TDI_STATUS InfoTdiQueryGetInterfaceMIB(TDIEntityID ID,
     OutData->if_index = Interface->Index;
     /* viz: tcpip keeps those indices */
     OutData->if_type = Interface ==
-        Loopback ? MIB_IF_TYPE_LOOPBACK : MIB_IF_TYPE_OTHER;
+        Loopback ? MIB_IF_TYPE_LOOPBACK : MIB_IF_TYPE_ETHERNET;
     OutData->if_mtu = Interface->MTU;
     TI_DbgPrint(DEBUG_INFO,
 		("Getting interface speed\n"));
@@ -57,110 +56,11 @@ TDI_STATUS InfoTdiQueryGetInterfaceMIB(TDIEntityID ID,
     IFDescr = (PCHAR)&OutData->if_descr[0];
 
     if( IF ) {
-        if (OutData->if_type == MIB_IF_TYPE_OTHER)
-        {
-            NdisStatus = NDISCall(IF,
-                                  NdisRequestQueryInformation,
-                                  OID_GEN_PHYSICAL_MEDIUM,
-                                  &Medium,
-                                  sizeof(ULONG));
-            if (NdisStatus == NDIS_STATUS_SUCCESS)
-            {
-                switch (Medium)
-                {
-#if 0
-                    case NdisPhysicalMediumUnspecified:
-#endif
-                    case NdisPhysicalMediumWirelessLan:
-                        /* Win2003: MIB_IF_TYPE_ETHERNET; Vista+: IF_TYPE_IEEE80211 */
-#if (_WIN32_WINNT >= _WIN32_WINNT_VISTA)
-                        OutData->if_type = IF_TYPE_IEEE80211;
-#else
-                        OutData->if_type = MIB_IF_TYPE_ETHERNET;
-#endif
-                        break;
-#if 0
-                    case NdisPhysicalMediumCableModem:
-                    case NdisPhysicalMediumPhoneLine:
-                    case NdisPhysicalMediumPowerLine:
-                    case NdisPhysicalMediumDSL:
-                    case NdisPhysicalMediumFibreChannel:
-                    case NdisPhysicalMedium1394:
-                    case NdisPhysicalMediumWirelessWan:
-#endif
-#if (_WIN32_WINNT >= _WIN32_WINNT_VISTA)
-                    /* NDIS 6.0+ (Vista+) */
-                    case NdisPhysicalMediumNative802_11:
-                        OutData->if_type = IF_TYPE_IEEE80211;
-                        break;
-#endif
-#if 0
-                    case NdisPhysicalMediumBluetooth:
-                    case NdisPhysicalMediumInfiniband:
-                    case NdisPhysicalMediumWiMax:
-                    case NdisPhysicalMediumUWB:
-#endif
-                    case NdisPhysicalMedium802_3:
-                        OutData->if_type = MIB_IF_TYPE_ETHERNET;
-                        break;
-
-                    case NdisPhysicalMedium802_5:
-                        OutData->if_type = MIB_IF_TYPE_TOKENRING;
-                        break;
-#if 0
-                    case NdisPhysicalMediumIrda:
-                    case NdisPhysicalMediumWiredWAN:
-                    case NdisPhysicalMediumWiredCoWan:
-                    case NdisPhysicalMediumOther:
-#endif
-                }
-            }
-        }
-
-        if (OutData->if_type == MIB_IF_TYPE_OTHER)
-        {
-            NdisStatus = NDISCall(IF,
-                                  NdisRequestQueryInformation,
-                                  OID_GEN_MEDIA_SUPPORTED,
-                                  &Medium,
-                                  sizeof(ULONG));
-            if (NdisStatus == NDIS_STATUS_SUCCESS)
-            {
-                switch (Medium)
-                {
-                    case NdisMedium802_3:
-                        OutData->if_type = MIB_IF_TYPE_ETHERNET;
-                        break;
-
-                    case NdisMedium802_5:
-                        OutData->if_type = MIB_IF_TYPE_TOKENRING;
-                        break;
-
-                    case NdisMediumFddi:
-                        OutData->if_type = MIB_IF_TYPE_FDDI;
-                        break;
-#if 0
-                    case NdisMediumWan,
-                    case NdisMediumLocalTalk:
-                    case NdisMediumDix:
-                    case NdisMediumArcnetRaw:
-                    case NdisMediumArcnet878_2:
-                    case NdisMediumAtm:
-                    case NdisMediumWirelessWan:
-                    case NdisMediumIrda:
-                    case NdisMediumBpc:
-                    case NdisMediumCoWan:
-                    case NdisMedium1394:
-#endif
-                }
-            }
-        }
-
-        GetInterfaceSpeed( Interface, (PUINT)&OutData->if_speed );
-        TI_DbgPrint(DEBUG_INFO,
-            ("IF Speed = %d * 100bps\n", OutData->if_speed));
-        memcpy(OutData->if_physaddr, Interface->Address, Interface->AddressLength);
-        TI_DbgPrint(DEBUG_INFO, ("Got HWAddr\n"));
+	GetInterfaceSpeed( Interface, (PUINT)&OutData->if_speed );
+	TI_DbgPrint(DEBUG_INFO,
+		    ("IF Speed = %d * 100bps\n", OutData->if_speed));
+	memcpy(OutData->if_physaddr, Interface->Address, Interface->AddressLength);
+	TI_DbgPrint(DEBUG_INFO, ("Got HWAddr\n"));
 
         memcpy(&OutData->if_inoctets, &Interface->Stats, sizeof(SEND_RECV_STATS));
 
@@ -195,7 +95,7 @@ TDI_STATUS InfoTdiQueryGetInterfaceMIB(TDIEntityID ID,
 			    ID.tei_entity, ID.tei_instance, Size));
 
     Status = InfoCopyOut( (PCHAR)OutData, Size, Buffer, BufferSize );
-    ExFreePoolWithTag( OutData, OUT_DATA_TAG );
+    ExFreePool( OutData );
 
     TI_DbgPrint(DEBUG_INFO,("Returning %x\n", Status));
 
@@ -213,14 +113,14 @@ TDI_STATUS InfoTdiQueryGetArptableMIB(TDIEntityID ID,
 
     if (MemSize != 0)
     {
-        ArpEntries = ExAllocatePoolWithTag( NonPagedPool, MemSize, ARP_ENTRY_TAG );
+        ArpEntries = ExAllocatePool( NonPagedPool, MemSize );
         if( !ArpEntries ) return STATUS_NO_MEMORY;
 
         NBCopyNeighbors( Interface, ArpEntries );
 
         Status = InfoCopyOut( (PVOID)ArpEntries, MemSize, Buffer, BufferSize );
 
-        ExFreePoolWithTag( ArpEntries, ARP_ENTRY_TAG );
+        ExFreePool( ArpEntries );
     }
     else
     {
@@ -243,7 +143,7 @@ TDI_STATUS InfoTdiSetArptableMIB(PIP_INTERFACE IF, PVOID Buffer, UINT BufferSize
 
     if ((NCE = NBLocateNeighbor(&Address, IF)))
         NBRemoveNeighbor(NCE);
-
+     
     if (NBAddNeighbor(IF,
                       &Address,
                       ArpEntry->PhysAddr,
