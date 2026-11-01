@@ -61,4 +61,3 @@ AllocateTcpPort(
     PortNumberHint = *PortNumber;
     return FALSE;
 }
-
