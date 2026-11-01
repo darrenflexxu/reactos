@@ -15,9 +15,13 @@
 
 #define MEM_ALIGNMENT                   4
 
-#define LWIP_ARP                        0
+#define LWIP_ARP                        1
 
 #define ETH_PAD_SIZE                    2
+
+#define ARP_QUEUEING                    0
+
+#define IP_FORWARD                      0
 
 #define IP_REASS_MAX_PBUFS              0xFFFFFFFF
 
@@ -27,11 +31,29 @@
 
 #define IP_SOF_BROADCAST_RECV           1
 
-#define LWIP_ICMP                       0
+#define LWIP_ICMP                       1
 
-#define LWIP_RAW                        0
+#define LWIP_RAW                        1
 
-#define LWIP_UDP                        0
+#define LWIP_UDP                        1
+
+#define LWIP_SNMP                       1
+
+#define LWIP_DHCP                       0
+
+#define LWIP_AUTOIP                     0
+
+#define LWIP_IGMP                       0
+
+#define LWIP_DNS                        0
+
+#define LWIP_TCP                        1
+
+#define LWIP_CALLBACK_API               1
+
+#define LWIP_NETIF_API                  1
+
+#define LWIP_NETIF_LOOPBACK             1
 
 #define SO_REUSE                        1
 

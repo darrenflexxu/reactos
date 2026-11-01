@@ -579,7 +579,7 @@ TcpIpSendDatagram(
     }
     else
     {
-        ip_addr_set_any(&IpAddr);
+        ip4_addr_set_any(&IpAddr);
         Port = 0;
     }
 

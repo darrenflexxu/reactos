@@ -336,7 +336,7 @@ ProtocolBindAdapter(
     TCPIP_INTERFACE* Interface;
     NDIS_STATUS OpenErrorStatus;
     UNICODE_STRING RealDeviceName;
-    struct ip_addr IpAddr, SubnetMask, GatewayAddr;
+    ip4_addr_t IpAddr, SubnetMask, GatewayAddr;
     err_t lwip_error;
 
     /* The device name comes in the \Device\AdapterName form */
@@ -360,9 +360,9 @@ ProtocolBindAdapter(
     RtlCopyUnicodeString(&Interface->DeviceName, &RealDeviceName);
 
     /* Add the interface to the lwip list */
-    ip_addr_set_zero(&IpAddr);
-    ip_addr_set_zero(&SubnetMask);
-    ip_addr_set_zero(&GatewayAddr);
+    ip4_addr_set_zero(&IpAddr);
+    ip4_addr_set_zero(&SubnetMask);
+    ip4_addr_set_zero(&GatewayAddr);
     lwip_error = netifapi_netif_add(
         &Interface->lwip_netif,
         &IpAddr,

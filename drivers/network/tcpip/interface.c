@@ -163,9 +163,9 @@ QueryInterfaceAddrTable(
         return STATUS_BUFFER_OVERFLOW;
     }
 
-    AddrEntry->iae_addr = Interface->lwip_netif.ip_addr.addr;
+    AddrEntry->iae_addr = netif_ip4_addr(&Interface->lwip_netif)->addr;
     AddrEntry->iae_index = Interface->lwip_netif.num;
-    AddrEntry->iae_mask = Interface->lwip_netif.netmask.addr;
+    AddrEntry->iae_mask = netif_ip4_netmask(&Interface->lwip_netif)->addr;
     _BitScanReverse(&AddrEntry->iae_bcastaddr, AddrEntry->iae_addr | ~AddrEntry->iae_mask);
     /* FIXME: set those */
     AddrEntry->iae_reasmsize = 0;
@@ -192,7 +192,7 @@ NTSTATUS
 TcpIpCreateLoopbackInterface(void)
 {
     err_t lwip_error;
-    struct ip_addr IpAddr, SubnetMask, GatewayAddr;
+    ip4_addr_t IpAddr, SubnetMask, GatewayAddr;
 
     LoopbackInterface = ExAllocatePoolWithTag(NonPagedPool, sizeof(*LoopbackInterface), TAG_INTERFACE);
     if (!LoopbackInterface)
