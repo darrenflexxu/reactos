@@ -178,13 +178,24 @@ QueryInterfaceAddrTable(
 /* callback provided to lwip for initializing the loopback interface */
 static
 err_t
+lwip_netif_loopback_output(
+    struct netif *netif,
+    struct pbuf *p,
+    const ip4_addr_t *ipaddr)
+{
+    UNREFERENCED_PARAMETER(ipaddr);
+    return netif_loop_output(netif, p);
+}
+
+static
+err_t
 lwip_netif_loopback_init(struct netif *netif)
 {
     NETIF_INIT_SNMP(netif, snmp_ifType_softwareLoopback, 0);
 
     netif->name[0] = 'l';
     netif->name[1] = 'o';
-    netif->output = netif_loop_output;
+    netif->output = lwip_netif_loopback_output;
     return ERR_OK;
 }
 

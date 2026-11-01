@@ -186,6 +186,7 @@ DriverEntry(
 
 Failure:
     TcpIpUnregisterNdisProtocol();
+    sys_shutdown();
 
     if (IpDeviceObject)
         IoDeleteDevice(IpDeviceObject);
@@ -501,4 +502,5 @@ TcpIpUnload(
     IoDeleteDevice(UdpDeviceObject);
     IoDeleteDevice(TcpDeviceObject);
     TcpIpUnregisterNdisProtocol();
+    sys_shutdown();
 }

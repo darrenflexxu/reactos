@@ -2,7 +2,6 @@
 set(LWIP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lwip)
 set(LWIP_INCLUDE_DIRS
     ${LWIP_DIR}/src/include
-    ${LWIP_DIR}/src/include/ipv4
     ${CMAKE_CURRENT_SOURCE_DIR}/include/lwip
 )
 include(${LWIP_DIR}/src/Filelists.cmake)
