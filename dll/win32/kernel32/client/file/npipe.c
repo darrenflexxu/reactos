@@ -1073,7 +1073,7 @@ GetNamedPipeHandleStateW(HANDLE hNamedPipe,
 
             /* Convert time and return it */
             RemoteInfo.CollectDataTime.QuadPart *= -1;
-            CollectDataTime = RtlExtendedLargeIntegerDivide(RemoteInfo.CollectDataTime, 10000, NULL);
+            CollectDataTime.QuadPart = RemoteInfo.CollectDataTime.QuadPart / 10000;
             /* In case of overflow, just return MAX - 1 */
             if (CollectDataTime.HighPart != 0)
             {

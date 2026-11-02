@@ -1,5 +1,5 @@
-
 #ifndef _ARM64_MMTYPES_H
+#define MI_HIGHEST_USER_ADDRESS         (PVOID)0x000007FFFFFEFFFFULL
 #define _ARM64_MMTYPES_H
 
 #ifdef __cplusplus

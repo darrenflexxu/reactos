@@ -647,7 +647,7 @@ BaseInitializeContext(IN PCONTEXT Context,
     /* Give it some room for the Parameter */
     Context->Sp -= sizeof(PVOID);
 #else
-#warning Unknown architecture
+#pragma message("Unknown architecture")
     UNIMPLEMENTED;
     DbgBreakPoint();
 #endif

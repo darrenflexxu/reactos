@@ -149,7 +149,7 @@ GetMailslotInfo(IN HANDLE hMailslot,
          else
          {
              Timeout.QuadPart = -Buffer.ReadTimeout.QuadPart;
-             Timeout = RtlExtendedLargeIntegerDivide(Timeout, 10000, NULL);
+             Timeout.QuadPart /= 10000;
              if (Timeout.HighPart == 0)
              {
                  *lpReadTimeout = Timeout.LowPart;

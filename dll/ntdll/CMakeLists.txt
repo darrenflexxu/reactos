@@ -83,4 +83,7 @@ add_cd_file(TARGET ntdll DESTINATION reactos/system32 NO_CAB FOR all)
 # Newer VS versions link to _ftol2 / _ftoul2_legacy
 if(MSVC AND ARCH STREQUAL "i386")
     target_link_libraries(libntdll ftol2)
+elseif(MSVC AND ARCH STREQUAL "arm64")
+    # ARM64 native code references _fltused when it uses floating point
+    target_link_libraries(libntdll fltused)
 endif()

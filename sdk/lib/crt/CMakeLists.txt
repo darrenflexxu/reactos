@@ -47,6 +47,14 @@ if(MSVC AND ARCH STREQUAL "i386")
     add_dependencies(ftol2 asm)
 endif()
 
+if(MSVC AND ARCH STREQUAL "arm64")
+    # ARM64 code references _fltused when it uses floating point, but native
+    # modules do not link the CRT. Provide it through libntdll, like ftol2
+    # does for i386.
+    add_library(fltused misc/fltused.c)
+    add_dependencies(fltused psdk)
+endif()
+
 add_library(dbgrpt misc/dbgrpt.cpp)
 target_link_libraries(dbgrpt chkstk ${PSEH_LIB})
 target_compile_definitions(dbgrpt PRIVATE

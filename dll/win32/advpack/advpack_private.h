@@ -21,6 +21,9 @@
 #ifndef __ADVPACK_PRIVATE_H
 #define __ADVPACK_PRIVATE_H
 
+#include <stdlib.h>
+#define __ADVPACK_PRIVATE_H
+
 HRESULT do_ocx_reg(HMODULE hocx, BOOL do_reg, const WCHAR *flags, const WCHAR *param);
 LPWSTR get_parameter(LPWSTR *params, WCHAR separator, BOOL quoted);
 void set_ldids(HINF hInf, LPCWSTR pszInstallSection, LPCWSTR pszWorkingDir);

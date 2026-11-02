@@ -1844,8 +1844,10 @@ CreateInstallPartition:
 
 
 #define PARTITION_SIZE_INPUT_FIELD_LENGTH 9
-/* Restriction for MaxSize */
-#define PARTITION_MAXSIZE (pow(10, (PARTITION_SIZE_INPUT_FIELD_LENGTH - 1)) - 1)
+/* Restriction for MaxSize: 10^(PARTITION_SIZE_INPUT_FIELD_LENGTH - 1) - 1.
+ * Use an integer constant instead of pow(), so that native-mode code does
+ * not pull in the floating point CRT. */
+#define PARTITION_MAXSIZE 99999999
 
 static VOID
 ShowPartitionSizeInputBox(SHORT Left,

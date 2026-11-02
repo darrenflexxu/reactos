@@ -139,6 +139,11 @@ function(add_user_profile_dirs _image_filelist _rootdir _username)
 endfunction()
 
 
+if(ARCH STREQUAL "arm" OR ARCH STREQUAL "arm64")
+add_custom_target(bootcd
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target base/all
+    COMMENT "Boot CD is not supported on this architecture; building base/all instead.")
+else()
 ## BootCD
 # Create the file list
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/bootcd.cmake.lst "${CMAKE_CURRENT_BINARY_DIR}/empty\n")
@@ -150,7 +155,12 @@ add_custom_target(bootcd
     COMMAND native-isohybrid -b ${_isombr_file} -t 0x96 ${REACTOS_BINARY_DIR}/bootcd.iso
     DEPENDS isombr native-isohybrid native-mkisofs livecd
     VERBATIM)
-
+endif()
+if(ARCH STREQUAL "arm" OR ARCH STREQUAL "arm64")
+add_custom_target(bootcdregtest
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target base/all
+    COMMENT "Boot CD regtest is not supported on this architecture; building base/all instead.")
+else()
 ## BootCDRegTest
 # Create the file list
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/bootcdregtest.cmake.lst "${CMAKE_CURRENT_BINARY_DIR}/empty\n")
@@ -162,7 +172,7 @@ add_custom_target(bootcdregtest
     COMMAND native-isohybrid -b ${_isombr_file} -t 0x96 ${REACTOS_BINARY_DIR}/bootcdregtest.iso
     DEPENDS isombr native-isohybrid native-mkisofs
     VERBATIM)
-
+endif()
 ## LiveImage -- Constitutes a small RAMDISK ISO, and is also merged with the BootCD
 # Create the file list
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/livecd.cmake.lst "${CMAKE_CURRENT_BINARY_DIR}/empty\n")

@@ -1,16 +1,12 @@
-
 /* INCLUDES ******************************************************************/
 
-/* We need one of these first! */
-/* #include <kxarm64.h> */
-
 /* CODE **********************************************************************/
+    AREA |.text|, CODE, READONLY, ALIGN=2
 
-    TEXTAREA
-
-    LEAF_ENTRY atan2
-    /* TODO: add an assert fail call, as this is unimplemented */
-    LEAF_END atan2
+    EXPORT atan2
+atan2
+    ; TODO: implement atan2 for ARM64
+    ret
 
     END
 /* EOF */

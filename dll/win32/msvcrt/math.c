@@ -982,7 +982,7 @@ static void _setfp( unsigned int *cw, unsigned int cw_mask,
 #endif
 #elif defined(__x86_64__)
     _setfp_sse(cw, cw_mask, sw, sw_mask);
-#elif defined(__aarch64__)
+#elif defined(__aarch64__) && !defined(_MSC_VER)
     ULONG_PTR old_fpsr = 0, fpsr = 0, old_fpcr = 0, fpcr = 0;
     unsigned int flags;
 
@@ -3017,3 +3017,4 @@ double CDECL MSVCR120_creal(_Dcomplex z)
 }
 
 #endif /* _MSVCR_VER>=120 */
+

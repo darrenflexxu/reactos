@@ -4515,3 +4515,7 @@ CreateProcessW(LPCWSTR lpApplicationName,
 }
 
 /* EOF */
+
+#if defined(_M_ARM64)
+void __cdecl _local_unwind(void) { }
+#endif

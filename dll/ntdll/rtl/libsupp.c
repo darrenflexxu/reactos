@@ -253,8 +253,8 @@ RtlWalkFrameChain(OUT PVOID *Callers,
     // FIXME: Hack. Probably won't work if this ever actually manages to run someday.
     Stack = (ULONG_PTR)&Stack;
 #endif
-#else
-#error Unknown architecture
+#elif defined(_M_ARM64)
+    Stack = (ULONG_PTR)&Stack;
 #endif
 
     /* Set it as the stack begin limit as well */
@@ -306,7 +306,7 @@ RtlWalkFrameChain(OUT PVOID *Callers,
             /* FIXME: Check that EIP is inside a loaded module */
 
             /* Save this frame */
-            Callers[i] = (PVOID)Eip;
+            Callers[i] = (PVOID)(ULONG_PTR)Eip;
 
             /* Check if we should continue */
             if (StopSearch)

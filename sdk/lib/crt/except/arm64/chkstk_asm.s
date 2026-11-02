@@ -1,19 +1,26 @@
+/*
+ * PROJECT:     ReactOS CRT library
+ * LICENSE:     BSD - See COPYING.ARM in the top level directory
+ * PURPOSE:     Implementation of _chkstk and _alloca_probe
+ * COPYRIGHT:   Copyright 2014 Timo Kreuzer (timo.kreuzer@reactos.org)
+ *              Copyright 2014 Yuntian Zhang (yuntian.zh@gmail.com)
+ *              Copyright 2019 Mohamed Mediouni (mmediouni@gmx.fr)
+ */
 
 /* INCLUDES ******************************************************************/
 
-/* We need one of these first! */
-/* #include <kxarm64.h> */
-
 /* CODE **********************************************************************/
-    TEXTAREA
+    AREA |.text|, CODE, READONLY, ALIGN=2
 
-    LEAF_ENTRY __chkstk
-    /* TODO: add an assert fail call, as this is unimplemented */
-    LEAF_END __chkstk
+    EXPORT __chkstk
+__chkstk
+    ; TODO: implement proper stack probing
+    ret
 
-    LEAF_ENTRY __alloca_probe
-    /* TODO: add an assert fail call, as this is unimplemented */
-    LEAF_END __alloca_probe
+    EXPORT __alloca_probe
+__alloca_probe
+    ; TODO: add an assert fail call, as this is unimplemented
+    ret
 
     END
 /* EOF */
