@@ -47,7 +47,7 @@ BOOLEAN
 ReceiveDatagram(
     ADDRESS_FILE* AddressFile,
     struct pbuf *p,
-    ip_addr_t *addr,
+    const ip_addr_t *addr,
     u16_t port)
 {
     KIRQL OldIrql;
@@ -132,7 +132,7 @@ lwip_udp_ReceiveDatagram_callback(
     void *arg,
     struct udp_pcb *pcb,
     struct pbuf *p,
-    ip_addr_t *addr,
+    const ip_addr_t *addr,
     u16_t port)
 {
     UNREFERENCED_PARAMETER(pcb);
@@ -147,7 +147,7 @@ lwip_raw_ReceiveDatagram_callback(
     void *arg,
     struct raw_pcb *pcb,
     struct pbuf *p,
-    ip_addr_t *addr)
+    const ip_addr_t *addr)
 {
     BOOLEAN Result;
     ADDRESS_FILE* AddressFile = arg;
