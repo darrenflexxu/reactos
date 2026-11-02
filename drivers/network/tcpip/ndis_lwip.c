@@ -154,7 +154,7 @@ ProtocolCloseAdapterComplete(
     _In_  NDIS_HANDLE ProtocolBindingContext,
     _In_  NDIS_STATUS Status)
 {
-    UNIMPLEMENTED
+    UNIMPLEMENTED;
 }
 
 static
@@ -164,7 +164,7 @@ ProtocolResetComplete(
     _In_  NDIS_HANDLE ProtocolBindingContext,
     _In_  NDIS_STATUS Status)
 {
-    UNIMPLEMENTED
+    UNIMPLEMENTED;
 }
 
 static
@@ -175,7 +175,7 @@ ProtocolRequestComplete(
     _In_  PNDIS_REQUEST NdisRequest,
     _In_  NDIS_STATUS Status)
 {
-    UNIMPLEMENTED
+    UNIMPLEMENTED;
 }
 
 static
@@ -200,7 +200,7 @@ NTAPI
 ProtocolReceiveComplete(
     _In_  NDIS_HANDLE ProtocolBindingContext)
 {
-    UNIMPLEMENTED
+    UNIMPLEMENTED;
 }
 
 static
@@ -209,7 +209,7 @@ NTAPI
 ProtocolStatusComplete(
     _In_  NDIS_HANDLE ProtocolBindingContext)
 {
-    UNIMPLEMENTED
+    UNIMPLEMENTED;
 }
 
 static
@@ -219,7 +219,7 @@ ProtocolReceivePacket(
     _In_  NDIS_HANDLE ProtocolBindingContext,
     _In_  PNDIS_PACKET Packet)
 {
-    UNIMPLEMENTED
+    UNIMPLEMENTED;
     return 0;
 }
 
@@ -247,7 +247,8 @@ lwip_netif_linkoutput(
     }
 
     /* Map pbuf to a NDIS buffer chain, if possible (== allocated from non paged pool). */
-    if ((p->type == PBUF_POOL) || (p->type == PBUF_RAM))
+    if (pbuf_match_allocsrc(p, PBUF_POOL) ||
+            pbuf_match_allocsrc(p, PBUF_RAM))
     {
         while (p)
         {
@@ -416,7 +417,7 @@ ProtocolUnbindAdapter(
   _In_   NDIS_HANDLE ProtocolBindingContext,
   _In_   NDIS_HANDLE UnbindContext)
 {
-    UNIMPLEMENTED
+    UNIMPLEMENTED;
 }
 
 NTSTATUS
