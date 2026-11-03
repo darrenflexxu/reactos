@@ -277,14 +277,22 @@ ProtocolReceive(
         HeaderBuffer == NULL ||
         LookaheadBufferSize > PacketSize ||
         (LookaheadBufferSize != 0 && LookAheadBuffer == NULL) ||
-        HeaderBufferSize > MAXUSHORT - ETH_PAD_SIZE ||
-        PacketSize > MAXUSHORT - ETH_PAD_SIZE - HeaderBufferSize)
+        HeaderBufferSize > MAXUSHORT ||
+        PacketSize > MAXUSHORT - HeaderBufferSize)
     {
         return NDIS_STATUS_NOT_ACCEPTED;
     }
 
+    /*
+     * Keep the Ethernet header and payload contiguous so that lwIP sniffs the
+     * frame from Pbuf->payload. Do not prepend the artificial ETH_PAD_SIZE
+     * prefix here: it only works when the caller also shifts the application
+     * payload in the corresponding place, and the original handling caused
+     * unaligned/garbled ingress frames (and subsequent BAD_POOL_HEADER
+     * reports at high speed).
+     */
     TotalSize = HeaderBufferSize + PacketSize;
-    Pbuf = pbuf_alloc(PBUF_RAW, (u16_t)(TotalSize + ETH_PAD_SIZE), PBUF_RAM);
+    Pbuf = pbuf_alloc(PBUF_RAW, (u16_t)TotalSize, PBUF_RAM);
     if (!Pbuf)
         return NDIS_STATUS_RESOURCES;
     if (Pbuf->len != Pbuf->tot_len)
@@ -293,8 +301,7 @@ ProtocolReceive(
         return NDIS_STATUS_RESOURCES;
     }
 
-    RtlZeroMemory(Pbuf->payload, ETH_PAD_SIZE);
-    PacketData = (PUCHAR)Pbuf->payload + ETH_PAD_SIZE;
+    PacketData = (PUCHAR)Pbuf->payload;
     RtlCopyMemory(PacketData, HeaderBuffer, HeaderBufferSize);
 
     if (LookaheadBufferSize == PacketSize)
@@ -381,12 +388,16 @@ ProtocolReceivePacket(
     NdisQueryPacket(Packet, NULL, NULL, &Buffer, &PacketLength);
     if (!Buffer ||
         PacketLength < (2 * ETH_HWADDR_LEN + sizeof(u16_t)) ||
-        PacketLength > MAXUSHORT - ETH_PAD_SIZE)
+        PacketLength > MAXUSHORT)
     {
         return 0;
     }
 
-    Pbuf = pbuf_alloc(PBUF_RAW, (u16_t)(PacketLength + ETH_PAD_SIZE), PBUF_RAM);
+    /*
+     * See ProtocolReceive: lwIP expects the Ethernet header to start at
+     * Pbuf->payload, so do not add an artificial ETH_PAD_SIZE prefix.
+     */
+    Pbuf = pbuf_alloc(PBUF_RAW, (u16_t)PacketLength, PBUF_RAM);
     if (!Pbuf)
         return 0;
     if (Pbuf->len != Pbuf->tot_len)
@@ -395,7 +406,6 @@ ProtocolReceivePacket(
         return 0;
     }
 
-    RtlZeroMemory(Pbuf->payload, ETH_PAD_SIZE);
     while (Buffer)
     {
         NdisQueryBufferSafe(Buffer,
@@ -411,7 +421,7 @@ ProtocolReceivePacket(
                 return 0;
             }
 
-            RtlCopyMemory((PUCHAR)Pbuf->payload + ETH_PAD_SIZE + BytesCopied,
+            RtlCopyMemory((PUCHAR)Pbuf->payload + BytesCopied,
                           BufferAddress,
                           BufferLength);
             BytesCopied += BufferLength;
