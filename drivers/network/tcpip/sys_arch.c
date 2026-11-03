@@ -240,7 +240,19 @@ sys_arch_mbox_tryfetch(sys_mbox_t *mbox, void **msg)
 err_t
 sys_mbox_trypost(sys_mbox_t *mbox, void *msg)
 {
-    sys_mbox_post(mbox, msg);
+    PLWIP_MESSAGE_CONTAINER Container;
+
+    Container = ExAllocatePool(NonPagedPool, sizeof(*Container));
+    if (!Container)
+        return ERR_MEM;
+
+    Container->Message = msg;
+
+    ExInterlockedInsertTailList(&mbox->ListHead,
+                                &Container->ListEntry,
+                                &mbox->Lock);
+
+    KeReleaseSemaphore(&mbox->Semaphore, IO_NO_INCREMENT, 1, FALSE);
 
     return ERR_OK;
 }
