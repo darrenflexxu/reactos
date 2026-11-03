@@ -83,6 +83,29 @@ ProtocolFromIrp(
     return (IPPROTO)Value;
 }
 
+typedef struct _IP_SET_DATA
+{
+    ULONG NteContext;
+    ULONG NewAddress;
+    ULONG NewNetmask;
+} IP_SET_DATA, *PIP_SET_DATA;
+
+static
+struct netif*
+TcpIpFindInterfaceByIndex(
+    _In_ ULONG IfIndex)
+{
+    struct netif* NetIf;
+
+    for (NetIf = netif_list; NetIf != NULL; NetIf = NetIf->next)
+    {
+        if (NetIf->num == IfIndex)
+            return NetIf;
+    }
+
+    return NULL;
+}
+
 NTSTATUS
 NTAPI
 DriverEntry(
@@ -460,13 +483,64 @@ TcpIpDispatch(
       break;
 
       case IOCTL_SET_IP_ADDRESS:
-          DPRINT1("TCPIP: Should handle IOCTL_SET_IP_ADDRESS.\n");
-          Status = STATUS_NOT_IMPLEMENTED;
+      {
+          PIP_SET_DATA Data = Irp->AssociatedIrp.SystemBuffer;
+          struct netif* NetIf;
+          ip4_addr_t IpAddr, Netmask;
+
+          if (IrpSp->Parameters.DeviceIoControl.InputBufferLength < sizeof(*Data) ||
+              IrpSp->Parameters.DeviceIoControl.OutputBufferLength < sizeof(*Data) ||
+              Data == NULL)
+          {
+              Status = STATUS_INVALID_PARAMETER;
+              break;
+          }
+
+          NetIf = TcpIpFindInterfaceByIndex(Data->NteContext);
+          if (NetIf == NULL)
+          {
+              Status = STATUS_DEVICE_DOES_NOT_EXIST;
+              break;
+          }
+
+          ip4_addr_set_u32(&IpAddr, Data->NewAddress);
+          ip4_addr_set_u32(&Netmask, Data->NewNetmask);
+          Status = netifapi_netif_set_addr(NetIf, &IpAddr, &Netmask, netif_ip4_gw(NetIf)) == ERR_OK ?
+                   STATUS_SUCCESS : STATUS_UNSUCCESSFUL;
+          if (NT_SUCCESS(Status))
+          {
+              Data->NewAddress = Data->NteContext;
+              Irp->IoStatus.Information = Data->NteContext;
+          }
+      }
       break;
 
       case IOCTL_DELETE_IP_ADDRESS:
-          DPRINT1("TCPIP: Should handle IOCTL_DELETE_IP_ADDRESS.\n");
-          Status = STATUS_NOT_IMPLEMENTED;
+      {
+          PUSHORT IfIndex = Irp->AssociatedIrp.SystemBuffer;
+          struct netif* NetIf;
+          ip4_addr_t IpAddr, Netmask, Gateway;
+
+          if (IrpSp->Parameters.DeviceIoControl.InputBufferLength < sizeof(*IfIndex) ||
+              IfIndex == NULL)
+          {
+              Status = STATUS_INVALID_PARAMETER;
+              break;
+          }
+
+          NetIf = TcpIpFindInterfaceByIndex(*IfIndex);
+          if (NetIf == NULL)
+          {
+              Status = STATUS_DEVICE_DOES_NOT_EXIST;
+              break;
+          }
+
+          ip4_addr_set_zero(&IpAddr);
+          ip4_addr_set_zero(&Netmask);
+          ip4_addr_set_zero(&Gateway);
+          Status = netifapi_netif_set_addr(NetIf, &IpAddr, &Netmask, &Gateway) == ERR_OK ?
+                   STATUS_SUCCESS : STATUS_UNSUCCESSFUL;
+      }
       break;
 
       default:
