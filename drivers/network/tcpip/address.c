@@ -667,8 +667,17 @@ Finish:
     if (p)
         pbuf_free(p);
     Irp->IoStatus.Status = Status;
+
+    /*
+     * Datagram sends are completed asynchronously from the caller's point of
+     * view: the send completion routine may run before this function returns
+     * and is allowed to release resources associated with the IRP. Report
+     * STATUS_PENDING so callers do not try to touch an IRP that has already
+     * been completed.
+     */
+    IoMarkIrpPending(Irp);
     IoCompleteRequest(Irp, IO_NETWORK_INCREMENT);
-    return Status;
+    return STATUS_PENDING;
 }
 
 NTSTATUS
