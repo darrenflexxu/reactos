@@ -16,6 +16,12 @@ static NDIS_MEDIUM NdisMediaArray[] = { NdisMedium802_3 };
 /* The handle we got from NDIS for this protocol */
 static NDIS_HANDLE NdisHandle;
 
+typedef struct _TCPIP_RECEIVE_CONTEXT
+{
+    struct pbuf* Pbuf;
+    UINT PacketSize;
+} TCPIP_RECEIVE_CONTEXT;
+
 /* Initializes the various values lwip will need */
 static
 NDIS_STATUS
@@ -104,7 +110,10 @@ InitializeInterface(
     }
 
     /* Initialize the packet pool */
-    NdisAllocatePacketPool(&Status, &Interface->PacketPool, TCPIP_PACKETPOOL_SIZE, 0);
+    NdisAllocatePacketPool(&Status,
+                           &Interface->PacketPool,
+                           TCPIP_PACKETPOOL_SIZE,
+                           sizeof(TCPIP_RECEIVE_CONTEXT));
     if (!NT_SUCCESS(Status))
     {
         DPRINT1("Could not allocate a packet pool.\n");
@@ -181,6 +190,71 @@ ProtocolRequestComplete(
 static
 NDIS_STATUS
 NTAPI
+TcpIpIndicatePbuf(
+    _In_ TCPIP_INTERFACE* Interface,
+    _In_ struct pbuf* Pbuf)
+{
+    err_t Error;
+
+    Error = tcpip_input(Pbuf, &Interface->lwip_netif);
+    if (Error != ERR_OK)
+    {
+        pbuf_free(Pbuf);
+        return NDIS_STATUS_RESOURCES;
+    }
+
+    return NDIS_STATUS_SUCCESS;
+}
+
+static
+NDIS_STATUS
+TcpIpCompleteReceiveTransfer(
+    _In_ TCPIP_INTERFACE* Interface,
+    _In_ PNDIS_PACKET Packet,
+    _In_ NDIS_STATUS Status,
+    _In_ UINT BytesTransferred)
+{
+    TCPIP_RECEIVE_CONTEXT* Context = (TCPIP_RECEIVE_CONTEXT*)Packet->ProtocolReserved;
+    struct pbuf* Pbuf = Context->Pbuf;
+    PNDIS_BUFFER Buffer;
+    UINT PacketSize = Context->PacketSize;
+
+    Context->Pbuf = NULL;
+    NdisUnchainBufferAtFront(Packet, &Buffer);
+    if (Buffer)
+        NdisFreeBuffer(Buffer);
+    NdisFreePacket(Packet);
+
+    if (!Pbuf)
+        return NDIS_STATUS_NOT_ACCEPTED;
+
+    if (Status != NDIS_STATUS_SUCCESS || BytesTransferred != PacketSize)
+    {
+        pbuf_free(Pbuf);
+        return NDIS_STATUS_NOT_ACCEPTED;
+    }
+
+    return TcpIpIndicatePbuf(Interface, Pbuf);
+}
+
+static
+VOID
+NTAPI
+ProtocolTransferDataComplete(
+    _In_ NDIS_HANDLE ProtocolBindingContext,
+    _In_ PNDIS_PACKET Packet,
+    _In_ NDIS_STATUS Status,
+    _In_ UINT BytesTransferred)
+{
+    TcpIpCompleteReceiveTransfer((TCPIP_INTERFACE*)ProtocolBindingContext,
+                                 Packet,
+                                 Status,
+                                 BytesTransferred);
+}
+
+static
+NDIS_STATUS
+NTAPI
 ProtocolReceive(
     _In_  NDIS_HANDLE ProtocolBindingContext,
     _In_  NDIS_HANDLE MacReceiveContext,
@@ -190,8 +264,85 @@ ProtocolReceive(
     _In_  UINT LookaheadBufferSize,
     _In_  UINT PacketSize)
 {
-    UNIMPLEMENTED;
-    return STATUS_NOT_IMPLEMENTED;
+    TCPIP_INTERFACE* Interface = (TCPIP_INTERFACE*)ProtocolBindingContext;
+    struct pbuf* Pbuf;
+    PNDIS_PACKET Packet;
+    PNDIS_BUFFER Buffer;
+    PVOID PacketData;
+    UINT TotalSize;
+    UINT BytesTransferred = 0;
+    NDIS_STATUS Status;
+
+    if (HeaderBufferSize < (2 * ETH_HWADDR_LEN + sizeof(u16_t)) ||
+        HeaderBuffer == NULL ||
+        LookaheadBufferSize > PacketSize ||
+        (LookaheadBufferSize != 0 && LookAheadBuffer == NULL) ||
+        HeaderBufferSize > MAXUSHORT - ETH_PAD_SIZE ||
+        PacketSize > MAXUSHORT - ETH_PAD_SIZE - HeaderBufferSize)
+    {
+        return NDIS_STATUS_NOT_ACCEPTED;
+    }
+
+    TotalSize = HeaderBufferSize + PacketSize;
+    Pbuf = pbuf_alloc(PBUF_RAW, (u16_t)(TotalSize + ETH_PAD_SIZE), PBUF_RAM);
+    if (!Pbuf)
+        return NDIS_STATUS_RESOURCES;
+    if (Pbuf->len != Pbuf->tot_len)
+    {
+        pbuf_free(Pbuf);
+        return NDIS_STATUS_RESOURCES;
+    }
+
+    RtlZeroMemory(Pbuf->payload, ETH_PAD_SIZE);
+    PacketData = (PUCHAR)Pbuf->payload + ETH_PAD_SIZE;
+    RtlCopyMemory(PacketData, HeaderBuffer, HeaderBufferSize);
+
+    if (LookaheadBufferSize == PacketSize)
+    {
+        if (PacketSize != 0)
+        {
+            RtlCopyMemory((PUCHAR)PacketData + HeaderBufferSize,
+                          LookAheadBuffer,
+                          PacketSize);
+        }
+
+        return TcpIpIndicatePbuf(Interface, Pbuf);
+    }
+
+    NdisAllocatePacket(&Status, &Packet, Interface->PacketPool);
+    if (Status != NDIS_STATUS_SUCCESS)
+    {
+        pbuf_free(Pbuf);
+        return NDIS_STATUS_RESOURCES;
+    }
+
+    NdisAllocateBuffer(&Status,
+                       &Buffer,
+                       Interface->BufferPool,
+                       (PUCHAR)PacketData + HeaderBufferSize,
+                       PacketSize);
+    if (Status != NDIS_STATUS_SUCCESS)
+    {
+        NdisFreePacket(Packet);
+        pbuf_free(Pbuf);
+        return NDIS_STATUS_RESOURCES;
+    }
+
+    ((TCPIP_RECEIVE_CONTEXT*)Packet->ProtocolReserved)->Pbuf = Pbuf;
+    ((TCPIP_RECEIVE_CONTEXT*)Packet->ProtocolReserved)->PacketSize = PacketSize;
+    NdisChainBufferAtFront(Packet, Buffer);
+
+    NdisTransferData(&Status,
+                     Interface->NdisContext,
+                     MacReceiveContext,
+                     0,
+                     PacketSize,
+                     Packet,
+                     &BytesTransferred);
+    if (Status == NDIS_STATUS_PENDING)
+        return NDIS_STATUS_SUCCESS;
+
+    return TcpIpCompleteReceiveTransfer(Interface, Packet, Status, BytesTransferred);
 }
 
 static
@@ -200,7 +351,7 @@ NTAPI
 ProtocolReceiveComplete(
     _In_  NDIS_HANDLE ProtocolBindingContext)
 {
-    UNIMPLEMENTED;
+    UNREFERENCED_PARAMETER(ProtocolBindingContext);
 }
 
 static
@@ -219,7 +370,63 @@ ProtocolReceivePacket(
     _In_  NDIS_HANDLE ProtocolBindingContext,
     _In_  PNDIS_PACKET Packet)
 {
-    UNIMPLEMENTED;
+    TCPIP_INTERFACE* Interface = (TCPIP_INTERFACE*)ProtocolBindingContext;
+    struct pbuf* Pbuf;
+    PNDIS_BUFFER Buffer;
+    PVOID BufferAddress;
+    UINT BufferLength;
+    UINT PacketLength;
+    UINT BytesCopied = 0;
+
+    NdisQueryPacket(Packet, NULL, NULL, &Buffer, &PacketLength);
+    if (!Buffer ||
+        PacketLength < (2 * ETH_HWADDR_LEN + sizeof(u16_t)) ||
+        PacketLength > MAXUSHORT - ETH_PAD_SIZE)
+    {
+        return 0;
+    }
+
+    Pbuf = pbuf_alloc(PBUF_RAW, (u16_t)(PacketLength + ETH_PAD_SIZE), PBUF_RAM);
+    if (!Pbuf)
+        return 0;
+    if (Pbuf->len != Pbuf->tot_len)
+    {
+        pbuf_free(Pbuf);
+        return 0;
+    }
+
+    RtlZeroMemory(Pbuf->payload, ETH_PAD_SIZE);
+    while (Buffer)
+    {
+        NdisQueryBufferSafe(Buffer,
+                            &BufferAddress,
+                            &BufferLength,
+                            NormalPagePriority);
+        if (BufferLength != 0)
+        {
+            if (!BufferAddress ||
+                BufferLength > PacketLength - BytesCopied)
+            {
+                pbuf_free(Pbuf);
+                return 0;
+            }
+
+            RtlCopyMemory((PUCHAR)Pbuf->payload + ETH_PAD_SIZE + BytesCopied,
+                          BufferAddress,
+                          BufferLength);
+            BytesCopied += BufferLength;
+        }
+
+        NdisGetNextBuffer(Buffer, &Buffer);
+    }
+
+    if (BytesCopied != PacketLength)
+    {
+        pbuf_free(Pbuf);
+        return 0;
+    }
+
+    TcpIpIndicatePbuf(Interface, Pbuf);
     return 0;
 }
 
@@ -346,7 +553,7 @@ ProtocolBindAdapter(
     RealDeviceName.MaximumLength = DeviceName->MaximumLength - (8 * sizeof(WCHAR));
 
     /* Allocate an interface for this NIC */
-    Interface = ExAllocatePoolWithTag(PagedPool,
+    Interface = ExAllocatePoolWithTag(NonPagedPool,
         sizeof(*Interface) + RealDeviceName.MaximumLength,
         TAG_INTERFACE);
     if (!Interface)
@@ -435,6 +642,7 @@ TcpIpRegisterNdisProtocol(void)
     ProtocolCharacteristics.CloseAdapterCompleteHandler = ProtocolCloseAdapterComplete;
     ProtocolCharacteristics.ResetCompleteHandler = ProtocolResetComplete;
     ProtocolCharacteristics.RequestCompleteHandler = ProtocolRequestComplete;
+    ProtocolCharacteristics.TransferDataCompleteHandler = ProtocolTransferDataComplete;
     ProtocolCharacteristics.ReceiveHandler = ProtocolReceive;
     ProtocolCharacteristics.ReceiveCompleteHandler = ProtocolReceiveComplete;
     ProtocolCharacteristics.StatusCompleteHandler = ProtocolStatusComplete;
