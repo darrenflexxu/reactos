@@ -69,9 +69,17 @@
  * add support for other transport mediums */
 #define TCP_MSS                         1460
 
-#define TCP_WND                         0xFFFF
-
+/*
+ * Phase 1 (CORE-20055): 250 ms TCP timer intervals make delayed ACK clocking
+ * bursty and cap throughput on low RTT/high bandwidth links; window scaling
+ * allows a larger advertised receive window than the legacy 64 KB default.
+ */
+#define LWIP_WND_SCALE                  1
+#define TCP_RCV_SCALE                   8
+#define TCP_TMR_INTERVAL                100
+#define TCP_WND                         (256 * 1024)
 #define TCP_SND_BUF                     TCP_WND
+#define TCP_SNDLOWAT                    8192
 
 #define TCP_MAXRTX                      8
 
