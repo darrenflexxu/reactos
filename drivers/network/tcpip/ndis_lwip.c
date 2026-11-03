@@ -138,6 +138,20 @@ InitializeInterface(
 static
 VOID
 NTAPI
+TcpIpActivateInterface(
+    _In_ TCPIP_INTERFACE* Interface)
+{
+#if LWIP_DHCP
+    dhcp_start(&Interface->lwip_netif);
+#endif
+
+    netifapi_netif_set_up(&Interface->lwip_netif);
+}
+
+
+static
+VOID
+NTAPI
 ProtocolOpenAdapterComplete(
     _In_ NDIS_HANDLE ProtocolBindingContext,
     _In_ NDIS_STATUS Status,
@@ -152,7 +166,11 @@ ProtocolOpenAdapterComplete(
     }
 
     Status = InitializeInterface(Interface);
-    if (!NT_SUCCESS(Status))
+    if (NT_SUCCESS(Status))
+    {
+        TcpIpActivateInterface(Interface);
+    }
+    else
     {
         /* Unbind the interface and that's all */
         NdisCloseAdapter(&Status, Interface->NdisContext);
@@ -598,13 +616,6 @@ ProtocolBindAdapter(
         *Status = NDIS_STATUS_RESOURCES;
         return;
     }
-    /* Request an address before the interface comes up. DHCP replies are accepted by the newly installed RX callbacks in ProtocolReceive*. */
-#if LWIP_DHCP
-    dhcp_start(&Interface->lwip_netif);
-#endif
-
-    /* Make the lwIP netif routable before binding the adapter. */
-    netifapi_netif_set_up(&Interface->lwip_netif);
 
 
     /* Get a adapter handle from NDIS */
@@ -635,6 +646,10 @@ ProtocolBindAdapter(
 
     /* Finish the bind request in sync */
     *Status = InitializeInterface(Interface);
+    if (NT_SUCCESS(*Status))
+    {
+        TcpIpActivateInterface(Interface);
+    }
 }
 
 static
