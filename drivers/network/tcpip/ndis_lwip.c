@@ -6,6 +6,9 @@
  */
 
 #include "precomp.h"
+#if LWIP_DHCP
+#include <lwip/dhcp.h>
+#endif
 
 #define NDEBUG
 #include <debug.h>
@@ -595,6 +598,14 @@ ProtocolBindAdapter(
         *Status = NDIS_STATUS_RESOURCES;
         return;
     }
+    /* Request an address before the interface comes up. DHCP replies are accepted by the newly installed RX callbacks in ProtocolReceive*. */
+#if LWIP_DHCP
+    dhcp_start(&Interface->lwip_netif);
+#endif
+
+    /* Make the lwIP netif routable before binding the adapter. */
+    netifapi_netif_set_up(&Interface->lwip_netif);
+
 
     /* Get a adapter handle from NDIS */
     NdisOpenAdapter(
