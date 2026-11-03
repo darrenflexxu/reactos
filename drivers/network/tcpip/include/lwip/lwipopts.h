@@ -41,6 +41,8 @@
 
 #define LWIP_DHCP                       0
 
+#define LWIP_IP_ACCEPT_UDP_PORT(port)   ((port) == PP_NTOHS(68))
+
 #define LWIP_AUTOIP                     0
 
 #define LWIP_IGMP                       0
