@@ -70,16 +70,27 @@
 #define TCP_MSS                         1460
 
 /*
- * Phase 1 (CORE-20055): 250 ms TCP timer intervals make delayed ACK clocking
- * bursty and cap throughput on low RTT/high bandwidth links; window scaling
- * allows a larger advertised receive window than the legacy 64 KB default.
+ * Phase 1 (CORE-20055): a large receive window plus window scaling prevents
+ * high-bandwidth downloads from stalling on 64 KB window limits. Keep the send
+ * buffer at the legacy 64 KB limit and increase packet-related pool sizes so
+ * the larger window does not exhaust pbufs/segments at high packet rates. Add a
+ * finer TCP timer for more responsive ACK clocking.
  */
-#define LWIP_WND_SCALE                  1
-#define TCP_RCV_SCALE                   8
 #define TCP_TMR_INTERVAL                100
-#define TCP_WND                         (256 * 1024)
-#define TCP_SND_BUF                     TCP_WND
+#define TCP_WND                         (1024 * 1024 - 16)
+#define TCP_SND_BUF                     0xFFFF
+#define LWIP_WND_SCALE                  1
+#define TCP_RCV_SCALE                   4
 #define TCP_SNDLOWAT                    8192
+
+/*
+ * Match pbuf/memp sizing to the larger window and packet rate.
+ */
+#define MEMP_NUM_PBUF                   128
+#define MEMP_NUM_TCP_PCB                64
+#define MEMP_NUM_TCP_SEG                512
+#define MEMP_NUM_TCPIP_MSG_INPKT        256
+#define PBUF_POOL_SIZE                  256
 
 #define TCP_MAXRTX                      8
 
